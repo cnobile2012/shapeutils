@@ -3,9 +3,9 @@
 #
 # SVN/CVS Keywords
 #------------------------------
-# $Author: $
-# $Date: $
-# $Revision: $
+# $Author$
+# $Date$
+# $Revision$
 #------------------------------
 #
 # Original version by Zachary Forest Johnson
