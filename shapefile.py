@@ -37,8 +37,11 @@ class ShapeFile(object):
     PointZ, PolyLineZ, PolygonZ, MultiPointZ, PointM, PolyLineM, PolygonM,
     MultiPointM, and MultiPatch.
     """
-    __slots__ = ('__BIG_ENDIAN_UNSIGNED_LONG', '__LITTLE_ENDIAN_UNSIGNED_LONG',
-                 '__db', '__pointCount', '__readMethods',)
+    __slots__ = ('__SIGNED_INT', '__DOUBLE', '__BIG_ENDIAN_UNSIGNED_LONG',
+                 '__LITTLE_ENDIAN_UNSIGNED_LONG', '__db', '__pointCount',
+                 '__readMethods',)
+    __SIGNED_INT = 'i'
+    __DOUBLE = 'd'
     __BIG_ENDIAN_UNSIGNED_LONG = ">L"
     __LITTLE_ENDIAN_UNSIGNED_LONG = "<L"
     __db = []
@@ -55,11 +58,13 @@ class ShapeFile(object):
         # Get basic shapefile configuration.
         fp = open(filename, 'rb')
         fp.seek(32)
-        filetype = self._readAndUnpack('i', fp.read(4))
+        filetype = self._readAndUnpack(self.__SIGNED_INT, fp.read(4))
+        # Get surface bounds.
         bounds = self._readBounds(fp)
+        # Get Z (axis) and M (measure) bounds if any. 
+        bounds += self._readBounds(fp)
 
         # Fetch Records.
-        fp.seek(100)
         features = []
 
         while True:
@@ -82,6 +87,7 @@ class ShapeFile(object):
             recType = self._readAndUnpack(
                 self.__LITTLE_ENDIAN_UNSIGNED_LONG, fp.read(4))
             #print recordNumber, contentLength, recType
+            # Read content
             shape = self.__readMethods[recType][0](self, fp)
 
             if shape:
@@ -109,24 +115,24 @@ class ShapeFile(object):
         return {}
 
     def _readRecordPoint(self, fp):
-        point = {'points': (self._readAndUnpack('d', fp.read(8)),
-                            self._readAndUnpack('d', fp.read(8)))}
+        point = {'points': (self._readAndUnpack(self.__DOUBLE, fp.read(8)),
+                            self._readAndUnpack(self.__DOUBLE, fp.read(8)))}
         self.__pointCount += 1
         return point
 
     def _readRecordPolyLine(self, fp):
         shape = {'bounds': self._readBounds(fp)}
-        nParts = self._readAndUnpack('i', fp.read(4))
-        nPoints = self._readAndUnpack('i', fp.read(4))
+        nParts = self._readAndUnpack(self.__SIGNED_INT, fp.read(4))
+        nPoints = self._readAndUnpack(self.__SIGNED_INT, fp.read(4))
 
-        if self._readAndUnpack('i', fp.read(4)) != 0:
+        if self._readAndUnpack(self.__SIGNED_INT, fp.read(4)) != 0:
             raise ValueError('ERROR: First part offset must be 0')
 
         counts = []
         prev = 0
 
         for i in xrange(nParts - 1):
-            nextItem = self._readAndUnpack('i', fp.read(4))
+            nextItem = self._readAndUnpack(self.__SIGNED_INT, fp.read(4))
             counts.append(nextItem - prev)
             prev = nextItem
 
@@ -146,7 +152,7 @@ class ShapeFile(object):
     def _readRecordMultiPoint(self, fp):
         shape = {'bounds': self._readBounds(fp)}
         points = shape['points'] = []
-        nPoints = self._readAndUnpack('i', fp.read(4))
+        nPoints = self._readAndUnpack(self.__SIGNED_INT, fp.read(4))
 
         for i in xrange(nPoints):
             points.append(self._readRecordPoint(fp))
@@ -171,12 +177,12 @@ class ShapeFile(object):
         }
 
     def _readBounds(self, fp):
-        return (
-            (self._readAndUnpack('d',fp.read(8)),
-             self._readAndUnpack('d',fp.read(8))),
-            (self._readAndUnpack('d',fp.read(8)),
-             self._readAndUnpack('d',fp.read(8)))
-            )
+        return [
+            (self._readAndUnpack(self.__DOUBLE, fp.read(8)),
+             self._readAndUnpack(self.__DOUBLE, fp.read(8))),
+            (self._readAndUnpack(self.__DOUBLE, fp.read(8)),
+             self._readAndUnpack(self.__DOUBLE, fp.read(8)))
+            ]
 
     def _readAndUnpack(self, fieldtype, data):
         if data != '': data = unpack(fieldtype, data)[0]
