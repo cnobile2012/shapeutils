@@ -145,7 +145,7 @@ class ShapeFile(object):
             points = part['points'] = []
 
             for j in xrange(counts[i]):
-                points.append(self._readRecordPoint(fp))
+                points.append(self._readRecordPoint(fp)['points'])
 
         return shape
 
@@ -198,7 +198,7 @@ class ShapeFile(object):
                 self._processPartInfo(part)
 
     def _processPartInfo(self, part):
-        points = [points['points'] for points in part['points']]
+        points = part['points']
         n = len(points)
         area = cx = cy = 0
         xmin = ymin = 360
@@ -240,10 +240,10 @@ class ShapeFile(object):
     def _processBoundCenters(self, features):
         for feature in features:
             bounds = feature['shape']['bounds']
-            min = bounds[0]
-            max = bounds[1]
-            bounds['center'] = ((min[0] + max[0]) / 2,
-                                (min[1] + max[1]) / 2)
+            xymin = bounds[0]
+            xymax = bounds[1]
+            bounds['center'] = ((xymin[0] + xymax[0]) / 2,
+                                (xymin[1] + xymax[1]) / 2)
 
     def dumpFeatureInfo(self, features):
         fields = []
