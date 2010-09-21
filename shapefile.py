@@ -245,9 +245,6 @@ class ShapeFile(object):
             bounds['center'] = ((min[0] + max[0]) / 2,
                                 (min[1] + max[1]) / 2)
 
-    def getMAT(self, features):
-        raise NotImplementedError('Feature not implimented yet.')
-
     def dumpFeatureInfo(self, features):
         fields = []
         rows = []
@@ -269,3 +266,9 @@ class ShapeFile(object):
             rows.append(','.join(cols))
 
         return '\r\n'.join(rows)
+
+
+if __name__ == '__main__':
+    import sys
+    sf = ShapeFile()
+    print sf.loadShapefile(sys.argv[1])
