@@ -31,32 +31,33 @@ class ShapeFile(object):
     supported.
 
     The following shapes are supported:
-    NullShape, Point, PolyLine, Polygon, and MultiPoint.
+    NullShape, Point, PolyLine, Polygon, MultiPoint, PointM.
 
     The following shapes are not supported:
-    PointZ, PolyLineZ, PolygonZ, MultiPointZ, PointM, PolyLineM, PolygonM,
-    MultiPointM, and MultiPatch.
+    PointZ, PolyLineZ, PolygonZ, MultiPointZ, PolyLineM, PolygonM, MultiPointM,
+    and MultiPatch.
     """
-    __slots__ = ('__LE_SINT', '__BE_SINT', '__LE_DOUBLE',
-                 '__db', '__pointCount', '__readMethods',)
+    __slots__ = ('__LE_SINT', '__BE_SINT', '__LE_DOUBLE', '__db',
+                 '__readMethods',)
     __LE_SINT = '<i'
     __BE_SINT = '>i'
     __LE_DOUBLE = '<d'
     __db = []
 
-    def __init__(self):
-        self.__pointCount = 0
+    def parse(self, filename):
+        # Get basic shapefile configuration.
+        fp = open(filename, 'rb')
 
-    def loadShapefile(self, filename):
+        if self._readAndUnpack(self.__BE_SINT, fp.read(4)) != 9994:
+            raise ValueError("Invalid or corrupted shapefile.")
+
         # Open dbf file and get features as a list.
         dbfile = open(filename[0:-4] + '.dbf', 'rb')
         self.__db[:] = list(dbfUtils.dbfreader(dbfile))
         dbfile.close()
 
-        # Get basic shapefile configuration.
-        fp = open(filename, 'rb')
         fp.seek(32)
-        filetype = self._readAndUnpack(self.__LE_SINT, fp.read(4))
+        shapeType = self._readAndUnpack(self.__LE_SINT, fp.read(4))
         # Get surface bounds.
         bounds = self._readBounds(fp)
         # Get Z (axis) and M (measure) bounds if any.
@@ -68,10 +69,13 @@ class ShapeFile(object):
         while True:
             feature = self._createRecord(fp)
             if not feature: break
-            self._processPolyInfo(feature)
+
+            if shapeType in (3, 5, 23, 25):
+                self._processPolyInfo(feature)
+
             features.append(feature)
 
-        return {'type': filetype, 'bounds': bounds, 'features': features}
+        return {'type': shapeType, 'bounds': bounds, 'features': features}
 
     def _createRecord(self, fp):
         result = None
@@ -121,14 +125,11 @@ class ShapeFile(object):
           Double    Y    // Y Coordinate
         }
         """
-        point = {'points': (self._readAndUnpack(self.__LE_DOUBLE, fp.read(8)),
-                            self._readAndUnpack(self.__LE_DOUBLE, fp.read(8)))}
-        self.__pointCount += 1
-        return point
+        return {'points': self._readPoint(fp)}
 
-    def _readRecordPolyLine(self, fp):
+    def _readRecordPoly(self, fp):
         """
-        Type: 3
+        Type: 3 and 5
 
         PolyLine {
           Double[4]         Box        // Bounding Box (Xmin, Ymin, Xmax, Ymax)
@@ -141,12 +142,8 @@ class ShapeFile(object):
         shape = {'bounds': self._readBounds(fp)}
         nParts = self._readAndUnpack(self.__LE_SINT, fp.read(4))
         nPoints = self._readAndUnpack(self.__LE_SINT, fp.read(4))
-        offsetParts = []
-        prevRec = 0
-
-        for idx in xrange(nParts):
-            offsetParts.append(self._readAndUnpack(self.__LE_SINT, fp.read(4)))
-
+        offsetParts = [self._readAndUnpack(self.__LE_SINT, fp.read(4))
+                       for idx in xrange(nParts)]
         size = len(offsetParts)
 
         for i in xrange(size):
@@ -163,11 +160,9 @@ class ShapeFile(object):
         for i in xrange(nParts):
             part = {}
             parts.append(part)
-            points = part['points'] = []
-
-            for j in xrange(offsetParts[i]):
-                # Strip off the point dict since just the tuple is needed.
-                points.append(self._readRecordPoint(fp)['points'])
+            points = [self._readPoint(fp) for j in xrange(offsetParts[i])]
+            self._deleteConsecutiveDuplicatePoints(points)
+            part['points'] = points
 
         return shape
 
@@ -182,29 +177,82 @@ class ShapeFile(object):
         }
         """
         shape = {'bounds': self._readBounds(fp)}
-        points = shape['points'] = []
         nPoints = self._readAndUnpack(self.__LE_SINT, fp.read(4))
-
-        for i in xrange(nPoints):
-            # Strip off the point dict since just the tuple is needed.
-            points.append(self._readRecordPoint(fp)['points'])
-
+        shape['points'] = [self._readPoint(fp) for i in xrange(nPoints)]
         return shape
+
+
+
+
+    def _readRecordPointM(self, fp):
+        """
+        Type: 21
+
+        Point {
+          Double    X    // X Coordinate
+          Double    Y    // Y Coordinate
+          Double    M    // Measure
+        }
+        """
+        return {'points': self._readPointM(fp)}
+
+    def _readRecordPolyM(self, fp):
+        """
+        Type: 23 and 25
+
+        PolyLine {
+          Double[4]         Box        // Bounding Box (Xmin, Ymin, Xmax, Ymax)
+          Integer           NumParts   // Number of Parts
+          Integer           NumPoints  // Total Number of Points
+          Integer[NumParts] Parts      // Index to First Point in Part
+          Point[NumPoints]  Points     // Points for All Parts
+          Double[2]         M Range    // Bounding Measure Range (Mmin, Mmax)
+          Double[NumPoints] M Array    // Measures
+        }
+        """
+        shape = self._readRecordPoly(fp)
+        # *** _readMeasure may not be correct. ***
+        shape.update(self._readMeasure(fp))
+        return shape
+
+
+
+
+
+    def _readRecordMultiPointM(self, fp):
+        """
+        Type: 28
+
+        MultiPoint {
+          Double[4]         Box        // Bounding Box (Xmin, Ymin, Xmax, Ymax)
+          Integer           NumPoints  // Number of Points
+          Points[NumPoints] Points     // The Points in the Set
+          Double[2]         M Range    // Bounding Measure Range (Mmin, Mmax)
+          Double[NumPoints] M Array    // Measures
+        }
+        """
+        shape = self._readRecordMultiPoint(fp)
+        # *** _readMeasure may not be correct. ***
+        shape.update(self._readMeasure(fp))
+        return shape
+
+
+
 
     __readMethods = {
         0: (_readRecordNull, 'NullShape'),
         1: (_readRecordPoint, 'Point'),
-        3: (_readRecordPolyLine, 'PolyLine'),
-        5: (_readRecordPolyLine, 'Polygon'),
+        3: (_readRecordPoly, 'PolyLine'),
+        5: (_readRecordPoly, 'Polygon'),
         8: (_readRecordMultiPoint, 'MultiPoint'),
         11: (None, 'PointZ'),
         13: (None, 'PolyLineZ'),
         15: (None, 'PolygonZ'),
         18: (None, 'MultiPointZ'),
-        21: (None, 'PointM'),
-        23: (None, 'PolyLineM'),
-        25: (None, 'PolygonM'),
-        28: (None, 'MultiPointM'),
+        21: (_readRecordPointM, 'PointM'),
+        23: (_readRecordPolyM, 'PolyLineM'),
+        25: (_readRecordPolyM, 'PolygonM'),
+        28: (_readRecordMultiPointM, 'MultiPointM'),
         31: (None, 'MultiPatch'),
         }
 
@@ -216,18 +264,45 @@ class ShapeFile(object):
              self._readAndUnpack(self.__LE_DOUBLE, fp.read(8)))
             ]
 
+    def _readPoint(self, fp):
+        return (self._readAndUnpack(self.__LE_DOUBLE, fp.read(8)),
+                self._readAndUnpack(self.__LE_DOUBLE, fp.read(8)))
+
+    def _readPointM(self, fp):
+        return (self._readAndUnpack(self.__LE_DOUBLE, fp.read(8)),
+                self._readAndUnpack(self.__LE_DOUBLE, fp.read(8)),
+                self._readAndUnpack(self.__LE_DOUBLE, fp.read(8)))
+
+    def _readMeasure(self, fp):
+        shape = {}
+        shape['mRange'] = self._readPoint(fp)
+        shape['mArray'] = [self._readAndUnpack(self.__LE_DOUBLE, fp.read(8))
+                           for i in xrange(nPoints)]
+        return shape
+
     def _readAndUnpack(self, fieldtype, data):
         if data != '': data = unpack(fieldtype, data)[0]
         return data
 
+    def _deleteConsecutiveDuplicatePoints(self, points):
+        size = len(points)
+        dups = []
+
+        for i in xrange(size):
+            idx = i + 1
+
+            if idx < size and points[i] == points[idx]:
+                dups.append(i)
+
+        dups.reverse()
+        return [points.pop(i) for i in dups]
+
     def _processPolyInfo(self, feature):
-        nPoints = cx = cy = 0
         shape = feature['shape']
         shapeType = shape['type']
 
-        if shapeType in (3, 5):
-            for part in shape['parts']:
-                self._processPartInfo(part)
+        for part in shape['parts']:
+            self._processPartInfo(part)
 
     def _processPartInfo(self, part):
         points = part['points']
@@ -303,4 +378,4 @@ class ShapeFile(object):
 if __name__ == '__main__':
     import sys
     sf = ShapeFile()
-    print sf.loadShapefile(sys.argv[1])
+    print sf.parse(sys.argv[1])
