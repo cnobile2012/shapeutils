@@ -27,14 +27,12 @@ class ShapeFile(object):
     data.
 
     The shape file spec 'ESRI Shapefile Technical Description' found at
-    http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf is partially
-    supported.
+    http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf is fully
+    supported to the best of my knowledge.
 
     The following shapes are supported:
-    NullShape, Point, PolyLine, Polygon, MultiPoint, PointM.
-
-    The following shapes are not supported:
-    PointZ, PolyLineZ, PolygonZ, MultiPointZ, PolyLineM, PolygonM, MultiPointM,
+    NullShape, Point, PolyLine, Polygon, MultiPoint, PointZ, PolyLineZ,
+    PolygonZ, MultiPointZ, PointM, PolyLineM, PolygonM, MultiPointM,
     and MultiPatch.
     """
     __slots__ = ('__LE_SINT', '__BE_SINT', '__LE_DOUBLE', '__db', '_NULL_SHAPE',
@@ -156,8 +154,10 @@ class ShapeFile(object):
         Point {
           Double    X    // X Coordinate
           Double    Y    // Y Coordinate
+
           // If Z Coordinate
           Double    Z    // Z Coordinate
+
           // If Measure
           Double    M    // Measure
         }
@@ -181,17 +181,23 @@ class ShapeFile(object):
     def _readRecordPoly(self, fp):
         """
         Type: PolyLine (3), Polygon (5), PolyLineZ (13), PolygonZ (15),
-              PolyLineM (23), or PolygonM (25)
+              PolyLineM (23), PolygonM (25), or MultiPatch (31)
 
         PolyLine/Polygon {
           Double[4]         Box        // Bounding Box (Xmin, Ymin, Xmax, Ymax)
           Integer           NumParts   // Number of Parts
           Integer           NumPoints  // Total Number of Points
           Integer[NumParts] Parts      // Index to First Point in Part
+
+          // If MultiPatch
+          Integer[NumParts] PartTypes  // Part Type
+
           Point[NumPoints]  Points     // Points for All Parts
+
           // If Z Coordinate
           Double[2]         Z Range    // Bounding Z Range (Zmin, Zmax)
           Double[NumPoints] Z Array    // Z Values for All Points
+
           // If Measure
           Double[2]         M Range    // Bounding Measure Range (Mmin, Mmax)
           Double[NumPoints] M Array    // Measures
@@ -202,16 +208,10 @@ class ShapeFile(object):
         nParts = self._readIntegers(fp, 1)
         nPoints = self._readIntegers(fp, 1)
         offsetParts = [self._readIntegers(fp, 1) for idx in xrange(nParts)]
-        size = len(offsetParts)
+        self._processOffsetParts(offsetParts, nPoints)
 
-        for i in xrange(size):
-            offset = offsetParts[i]
-
-            if i < (size - 1):
-                offsetParts[i] = offsetParts[i + 1] - offset
-                nPoints -= offsetParts[i]
-            else:
-                offsetParts[i] = nPoints
+        if shapeType == self._MULTIPATCH:
+            partTypes = [self._readIntegers(fp, 1) for idx in xrange(nParts)]
 
         parts = shape['parts'] = []
 
@@ -272,9 +272,11 @@ class ShapeFile(object):
           Double[4]         Box        // Bounding Box (Xmin, Ymin, Xmax, Ymax)
           Integer           NumPoints  // Number of Points
           Points[NumPoints] Points     // The Points in the Set
+
           // If Z Coordinate
           Double[2]         Z Range    // Bounding Z Range (Zmin, Zmax)
           Double[NumPoints] Z Array    // Z values
+
           // If Measure
           Double[2]         M Range    // Bounding Measure Range (Mmin, Mmax)
           Double[NumPoints] M Array    // Measures
@@ -314,7 +316,7 @@ class ShapeFile(object):
         _POLYLINE_M: (_readRecordPoly, 'PolyLineM'),
         _POLYGON_M: (_readRecordPoly, 'PolygonM'),
         _MULTIPOINT_M: (_readRecordMultiPoint, 'MultiPointM'),
-        _MULTIPATCH: (None, 'MultiPatch'),
+        _MULTIPATCH: (_readRecordPoly, 'MultiPatch'),
         }
 
     def _readBounds(self, fp):
@@ -335,6 +337,18 @@ class ShapeFile(object):
         if data != '': data = unpack(fieldtype, data)[0]
         return data
 
+    def _processOffsetParts(self, offsetParts, nPoints):
+        size = len(offsetParts)
+
+        for i in xrange(size):
+            offset = offsetParts[i]
+
+            if i < (size - 1):
+                offsetParts[i] = offsetParts[i + 1] - offset
+                nPoints -= offsetParts[i]
+            else:
+                offsetParts[i] = nPoints
+
     def _deleteConsecutiveDuplicatePoints(self, parts):
         for part in parts:
             points = part.get('points')
@@ -350,11 +364,11 @@ class ShapeFile(object):
 
             dups.reverse()
             badPoints = [points.pop(i) for i in dups]
-            #print badPoints
+            #print >> sys.stderr, badPoints
 
             if measures:
                 badMeasures = [measures.pop(i) for i in dups]
-                #print badMeasures
+                #print >> sys.stderr, badMeasures
 
     def _checkContentLength(self, contentLength):
         if self.__contentLength != contentLength:
