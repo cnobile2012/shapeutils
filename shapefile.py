@@ -381,7 +381,8 @@ class ShapeFile(object):
         yy = pt[1]
 
         for pt in points:
-            x = pt[0];  y = pt[1]
+            x = pt[0]
+            y = pt[1]
             # Bounds
             xmin = min(x, xmin)
             ymin = min(y, ymin)
