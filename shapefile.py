@@ -214,13 +214,11 @@ class ShapeFile(object):
                 offsetParts[i] = nPoints
 
         parts = shape['parts'] = []
-        dups = []
 
         for i in xrange(nParts):
             part = {}
             parts.append(part)
             points = [self._readDoubles(fp, 2) for j in xrange(offsetParts[i])]
-            dups[:] = self._deleteConsecutiveDuplicatePoints(points)
             part['points'] = points
 
         if shapeType in (self._POLYLINE_Z, self._POLYGON_Z):
@@ -230,7 +228,6 @@ class ShapeFile(object):
                 nPointsOffset = offsetParts[i]
                 part = parts[i]
                 zPoints = self._readDoubles(fp, nPointsOffset)
-                self._deleteItemsRelatingToDuplicatePoints(zPoints, dups)
                 points = part['points']
                 nPointsInPart = len(points)
                 nZPoints = len(zPoints)
@@ -252,7 +249,6 @@ class ShapeFile(object):
                 nPointsOffset = offsetParts[i]
                 part = parts[i]
                 measures = self._readDoubles(fp, nPointsOffset)
-                self._deleteItemsRelatingToDuplicatePoints(measures, dups)
                 points = part['points']
                 nPointsInPart = len(points)
                 nMeasures = len(measures)
@@ -265,6 +261,7 @@ class ShapeFile(object):
                 part['measure'] = measures
 
         self._checkContentLength(contentLength)
+        self._deleteConsecutiveDuplicatePoints(parts)
         return shape
 
     def _readRecordMultiPoint(self, fp):
@@ -338,22 +335,26 @@ class ShapeFile(object):
         if data != '': data = unpack(fieldtype, data)[0]
         return data
 
-    def _deleteConsecutiveDuplicatePoints(self, points):
-        size = len(points)
-        dups = []
+    def _deleteConsecutiveDuplicatePoints(self, parts):
+        for part in parts:
+            points = part.get('points')
+            pSize = len(points)
+            measures = part.get('measures')
+            dups = []
 
-        for i in xrange(size):
-            idx = i + 1
+            for i in xrange(pSize):
+                idx = i + 1
 
-            if idx < size and points[i] == points[idx]:
-                dups.append(i)
+                if idx < pSize and points[i] == points[idx]:
+                    dups.append(i)
 
-        dups.reverse()
-        [points.pop(i) for i in dups]
-        return dups
+            dups.reverse()
+            badPoints = [points.pop(i) for i in dups]
+            #print badPoints
 
-    def _deleteItemsRelatingToDuplicatePoints(self, items, dups):
-        [items.pop(i) for i in dups]
+            if measures:
+                badMeasures = [measures.pop(i) for i in dups]
+                #print badMeasures
 
     def _checkContentLength(self, contentLength):
         if self.__contentLength != contentLength:
