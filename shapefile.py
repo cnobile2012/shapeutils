@@ -316,6 +316,7 @@ class ShapeFile(object):
         return data
 
     def _processOffsetParts(self, offsetParts, nPoints):
+        num = list(nPoints)
         size = len(offsetParts)
 
         for i in xrange(size):
@@ -323,9 +324,9 @@ class ShapeFile(object):
 
             if i < (size - 1):
                 offsetParts[i] = offsetParts[i + 1] - offset
-                nPoints -= offsetParts[i]
+                num -= offsetParts[i]
             else:
-                offsetParts[i] = nPoints
+                offsetParts[i] = num
 
     def _deleteConsecutiveDuplicatePoints(self, parts):
         for part in parts:
