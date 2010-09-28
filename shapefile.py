@@ -316,7 +316,7 @@ class ShapeFile(object):
         return data
 
     def _processOffsetParts(self, offsetParts, nPoints):
-        num = list(nPoints)
+        num = nPoints
         size = len(offsetParts)
 
         for i in xrange(size):
