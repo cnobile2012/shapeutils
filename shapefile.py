@@ -39,8 +39,8 @@ class ShapeFile(object):
                  '_POINT', '_POLYLINE', '_POLYGON', '_MULTIPOINT',
                  '_POINT_Z', '_POLYLINE_Z', '_POLYGON_Z', '_MULTIPOINT_Z',
                  '_POINT_M', '_POLYLINE_M', '_POLYGON_M', '_MULTIPOINT_M',
-                 '_MULTIPATCH', '__contentLength', '__shapeType', '__recordNum',
-                 '__readMethods',)
+                 '_MULTIPATCH', '__filename', '__contentLength', '__shapeType',
+                 '__recordNum', '__readMethods',)
     __LE_SINT = '<i'
     __BE_SINT = '>i'
     __LE_DOUBLE = '<d'
@@ -60,20 +60,21 @@ class ShapeFile(object):
     _MULTIPOINT_M = 28
     _MULTIPATCH = 31
 
-    def __init__(self):
+    def __init__(self, filename):
+        self.__filename = filename
         self.__contentLength = 0
         self.__shapeType = 0
         self.__recordNum = 0
 
-    def parse(self, filename):
+    def parse(self):
         # Get basic shapefile configuration.
-        fp = open(filename, 'rb')
+        fp = open(self.__filename, 'rb')
 
         if self._readAndUnpack(self.__BE_SINT, fp.read(4)) != 9994:
             raise ValueError("Invalid or corrupted shapefile.")
 
         # Open dbf file and get features as a list.
-        dbfile = open(filename[0:-4] + '.dbf', 'rb')
+        dbfile = open(self.__filename[0:-4] + '.dbf', 'rb')
         self.__db[:] = list(dbfUtils.dbfreader(dbfile))
         dbfile.close()
 
@@ -121,6 +122,7 @@ class ShapeFile(object):
                     value = values[i]
 
                     if isinstance(value, str):
+                        if value[0] == '\x00': value = ''
                         value = value.strip()
                         info[names[i]] = value
 
@@ -402,7 +404,7 @@ class ShapeFile(object):
             ymin = min(y, ymin)
             xmax = max(x, xmax)
             ymax = max(y, ymax)
-            # Area and centroid
+            # Area and Centroid
             a = xx * y - x * yy
             area += a
             cx += (x + xx) * a
@@ -457,6 +459,7 @@ class ShapeFile(object):
 
 
 if __name__ == '__main__':
-    import sys
-    sf = ShapeFile()
-    print sf.parse(sys.argv[1])
+    import sys, pprint
+    sf = ShapeFile(sys.argv[1])
+    pp = pprint.PrettyPrinter()
+    pp.pprint(sf.parse())
