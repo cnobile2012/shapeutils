@@ -220,27 +220,15 @@ class ShapeFile(object):
         for i in xrange(nParts):
             part = {}
             parts.append(part)
-            points = [self._readDoubles(fp, 2) for j in xrange(offsetParts[i])]
-            part['points'] = points
+            part['points'] = [self._readDoubles(fp, 2)
+                              for j in xrange(offsetParts[i])]
 
         if shapeType in (self._POLYLINE_Z, self._POLYGON_Z):
             shape['zRange'] = self._readDoubles(fp, 2)
 
             for i in xrange(nParts):
-                nPointsOffset = offsetParts[i]
-                part = parts[i]
-                zPoints = self._readDoubles(fp, nPointsOffset)
-                points = part['points']
-                nPointsInPart = len(points)
-                nZPoints = len(zPoints)
-
-                if nPointsInPart != nZPoints:
-                    msg = "Found %s points in part %s should be equal " + \
-                          "to %s Z points."
-                    raise ValueError(msg % (nPointsInPart, i, nZPoints))
-
-                [points[i].append(self._readDoubles(fp, 1))
-                 for i in xrange(nPointsInPart)]
+                [parts[i]['points'][j].append(self._readDoubles(fp, 1))
+                 for j in xrange(offsetParts[i])]
 
         if shapeType in (self._POLYLINE_Z, self._POLYGON_Z,
                          self._POLYLINE_M, self._POLYGON_M) and \
@@ -248,19 +236,7 @@ class ShapeFile(object):
             shape['mRange'] = self._readDoubles(fp, 2)
 
             for i in xrange(nParts):
-                nPointsOffset = offsetParts[i]
-                part = parts[i]
-                measures = self._readDoubles(fp, nPointsOffset)
-                points = part['points']
-                nPointsInPart = len(points)
-                nMeasures = len(measures)
-
-                if nPointsInPart != nMeasures:
-                    msg = "Found %s points in part %s should be equal " + \
-                          "to %s measures."
-                    raise ValueError(msg % (nPointsInPart, i, nMeasures))
-
-                part['measure'] = measures
+                parts[i]['measure'] = self._readDoubles(fp, offsetParts[i])
 
         self._checkContentLength(contentLength)
         self._deleteConsecutiveDuplicatePoints(parts)
