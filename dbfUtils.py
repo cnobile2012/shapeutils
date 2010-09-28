@@ -1,7 +1,8 @@
 import struct, datetime, decimal, itertools
 
 def dbfreader(f):
-    """Returns an iterator over records in a Xbase DBF file.
+    """
+    Returns an iterator over records in a Xbase DBF file.
 
     The first row returned contains the field names.
     The second row contains field specs: (type, size, decimal places).
@@ -9,7 +10,6 @@ def dbfreader(f):
     If a record is marked as deleted, it is skipped.
 
     File should be opened for binary reads.
-
     """
     # See DBF format spec at:
     #     http://www.pgts.com.au/download/public/xbase.htm#DBF_STRUCT
@@ -18,10 +18,12 @@ def dbfreader(f):
     numfields = (lenheader - 33) // 32
 
     fields = []
+
     for fieldno in xrange(numfields):
         name, typ, size, deci = struct.unpack('<11sc4xBB14x', f.read(32))
         name = name.replace('\0', '')       # eliminate NULs from string   
         fields.append((name, typ, size, deci))
+
     yield [field[0] for field in fields]
     yield [tuple(field[1:]) for field in fields]
 
@@ -31,16 +33,22 @@ def dbfreader(f):
     fields.insert(0, ('DeletionFlag', 'C', 1, 0))
     fmt = ''.join(['%ds' % fieldinfo[2] for fieldinfo in fields])
     fmtsiz = struct.calcsize(fmt)
+
     for i in xrange(numrec):
         record = struct.unpack(fmt, f.read(fmtsiz))
+
         if record[0] != ' ':
             continue                        # deleted record
+
         result = []
+
         for (name, typ, size, deci), value in itertools.izip(fields, record):
             if name == 'DeletionFlag':
                 continue
+
             if typ == "N":
                 value = value.replace('\0', '').lstrip()
+
                 if value == '':
                     value = 0
                 elif deci:
@@ -53,11 +61,13 @@ def dbfreader(f):
             elif typ == 'L':
                 value = (value in 'YyTt' and 'T') or (value in 'NnFf' and 'F') or '?'
             result.append(value)
+
         yield result
 
 
 def dbfwriter(f, fieldnames, fieldspecs, records):
-    """ Return a string suitable for writing directly to a binary dbf file.
+    """
+    Return a string suitable for writing directly to a binary dbf file.
 
     File f should be open for writing in a binary mode.
 
@@ -72,7 +82,6 @@ def dbfwriter(f, fieldnames, fieldspecs, records):
         size is the field width
         deci is the number of decimal places in the provided decimal object
     Records can be an iterable over the records (sequences of field values).
-    
     """
     # header info
     ver = 3
@@ -97,6 +106,7 @@ def dbfwriter(f, fieldnames, fieldspecs, records):
     # records
     for record in records:
         f.write(' ')                        # deletion flag
+
         for (typ, size, deci), value in itertools.izip(fieldspecs, record):
             if typ == "N":
                 value = str(value).rjust(size, ' ')
@@ -106,6 +116,7 @@ def dbfwriter(f, fieldnames, fieldspecs, records):
                 value = str(value)[0].upper()
             else:
                 value = str(value)[:size].ljust(size, ' ')
+
             assert len(value) == size
             f.write(value)
 
