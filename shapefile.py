@@ -138,7 +138,7 @@ class ShapeFile(object):
         contentLength = self._readAndUnpack(self.__BE_SINT, fp.read(4))
         shapeType = self._readAndUnpack(self.__LE_SINT, fp.read(4))
         self.__contentLength = 2
-        #print recordNumber, contentLength, recType
+        #print contentLength, shapeType
         return contentLength, shapeType
 
     def _readRecordNull(self, fp):
@@ -185,7 +185,7 @@ class ShapeFile(object):
         Type: PolyLine (3), Polygon (5), PolyLineZ (13), PolygonZ (15),
               PolyLineM (23), PolygonM (25), or MultiPatch (31)
 
-        PolyLine/Polygon {
+        PolyLine/Polygon/Z/M/MultiPatch {
           Double[4]         Box        // Bounding Box (Xmin, Ymin, Xmax, Ymax)
           Integer           NumParts   // Number of Parts
           Integer           NumPoints  // Total Number of Points
@@ -300,13 +300,14 @@ class ShapeFile(object):
     def _readBounds(self, fp):
         return [self._readDoubles(fp, 2), self._readDoubles(fp, 2)]
 
-    def _readIntegers(self, fp, items, type=__LE_SINT):
-        result = [self._readAndUnpack(type, fp.read(4)) for i in xrange(items)]
+    def _readIntegers(self, fp, items):
+        result = [self._readAndUnpack(self.__LE_SINT, fp.read(4))
+                  for i in xrange(items)]
         self.__contentLength += items * 2
         return items > 1 and result or result[0]
 
-    def _readDoubles(self, fp, items, type=__LE_DOUBLE):
-        result = [self._readAndUnpack(type, fp.read(8))
+    def _readDoubles(self, fp, items):
+        result = [self._readAndUnpack(self.__LE_DOUBLE, fp.read(8))
                   for i in xrange(items)]
         self.__contentLength += items * 4
         return items > 1 and result or result[0]
