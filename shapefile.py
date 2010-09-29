@@ -344,6 +344,7 @@ class ShapeFile(object):
 
             dups.reverse()
             badPoints = [points.pop(i) for i in dups]
+            #import sys
             #print >> sys.stderr, badPoints
 
             if measures:
@@ -404,14 +405,6 @@ class ShapeFile(object):
             'centroid': centroid,
             'extent': (abs(xmax - xmin), abs(ymax - ymin))
             })
-
-    def _processBoundCenters(self, features):
-        for feature in features:
-            bounds = feature['shape']['bounds']
-            xymin = bounds[0]
-            xymax = bounds[1]
-            bounds['center'] = ((xymin[0] + xymax[0]) / 2,
-                                (xymin[1] + xymax[1]) / 2)
 
     def dumpFeatureInfo(self, features):
         fields = []
