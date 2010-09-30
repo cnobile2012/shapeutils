@@ -50,7 +50,7 @@ def dbfreader(f):
             #      [hex(ord(c)) for c in value]
 
             if typ == "N":
-                value = value.replace('\0', '').lstrip()
+                value = value.replace('\x00', '').lstrip()
                 if not value.replace('.', '').isdigit(): value = ''
 
                 if value == '':
@@ -62,12 +62,14 @@ def dbfreader(f):
             elif typ == 'D':
                 value = value.strip()
 
-                if len(value) == int(size):
+                if len(value) == size:
                     y, m, d = int(value[:4]), int(value[4:6]), int(value[6:8])
                     value = datetime.date(y, m, d)
             elif typ == 'L':
                 value = (value in 'YyTt' and 'T') or \
                         (value in 'NnFf' and 'F') or '?'
+            elif typ == 'C':
+                value = value.replace('\x00', '').strip()
 
             result.append(value)
 
