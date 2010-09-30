@@ -46,8 +46,12 @@ def dbfreader(f):
             if name == 'DeletionFlag':
                 continue
 
+            #print name, typ, size, deci, value, type(value), len(value), \
+            #      [hex(ord(c)) for c in value]
+
             if typ == "N":
                 value = value.replace('\0', '').lstrip()
+                if not value.replace('.', '').isdigit(): value = ''
 
                 if value == '':
                     value = 0
@@ -56,10 +60,15 @@ def dbfreader(f):
                 else:
                     value = int(value)
             elif typ == 'D':
-                y, m, d = int(value[:4]), int(value[4:6]), int(value[6:8])
-                value = datetime.date(y, m, d)
+                value = value.strip()
+
+                if len(value) == int(size):
+                    y, m, d = int(value[:4]), int(value[4:6]), int(value[6:8])
+                    value = datetime.date(y, m, d)
             elif typ == 'L':
-                value = (value in 'YyTt' and 'T') or (value in 'NnFf' and 'F') or '?'
+                value = (value in 'YyTt' and 'T') or \
+                        (value in 'NnFf' and 'F') or '?'
+
             result.append(value)
 
         yield result
