@@ -123,9 +123,9 @@ class ShapeFile(object):
                     value = values[i]
 
                     if isinstance(value, str):
-                        if value and value[0] == '\x00': value = ''
                         value = value.strip()
-                        info[names[i]] = value
+
+                    info[names[i]] = value
 
                 result = {'shape': shape, 'info': info}
             else:
