@@ -106,8 +106,10 @@ class ShapeFile(object):
         result = None
         # Read header
         recordNumber = self._readAndUnpack(self.__BE_SINT, fp.read(4))
+        names = self.__db[0]
+        specs = self.__db[1]
 
-        if recordNumber != '':
+        if recordNumber:
             self.__recordNum = recordNumber
             # Read content
             shape = self.__readMethods[shapeType][0](self, fp)
@@ -115,14 +117,13 @@ class ShapeFile(object):
             if shape:
                 shape['type'] = shapeType
                 info = {}
-                names = self.__db[0]
                 values = self.__db[recordNumber + 1]
 
                 for i in xrange(len(names)):
                     value = values[i]
 
                     if isinstance(value, str):
-                        if value[0] == '\x00': value = ''
+                        if value and value[0] == '\x00': value = ''
                         value = value.strip()
                         info[names[i]] = value
 
