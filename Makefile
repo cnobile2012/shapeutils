@@ -1,9 +1,9 @@
 #
 # Development by Carl J. Nobile
 #
-# $Author: $
-# $Date: $
-# $Revision: $
+# $Author$
+# $Date$
+# $Revision$
 #
 
 PREFIX		= $(shell pwd)

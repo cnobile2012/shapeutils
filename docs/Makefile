@@ -2,9 +2,9 @@
 # Makefile
 # Development by Carl J. Nobile
 #
-# $Author: $
-# $Date: $
-# $Revision: $
+# $Author$
+# $Date$
+# $Revision$
 #
 
 FQDN		= $(shell hostname --fqdn)
