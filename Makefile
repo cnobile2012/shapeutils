@@ -8,6 +8,7 @@
 
 PREFIX		= $(shell pwd)
 PACKAGE_DIR	= $(shell echo $${PWD\#\#*/})
+SU_DIR		= $(PREFIX)/shputils
 DOCS_DIR	= $(PREFIX)/docs
 
 #----------------------------------------------------------------------
@@ -23,6 +24,7 @@ tar	: clean
 #----------------------------------------------------------------------
 clean	:
 	$(shell $(PREFIX)/cleanDirs.sh clean)
+	@(cd ${SU_DIR}; rm -f *~ *.pyc)
 	@(cd ${DOCS_DIR}; make clean)
 
 clobber	: clean
