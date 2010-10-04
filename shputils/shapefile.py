@@ -18,7 +18,7 @@
 #
 
 from struct import unpack
-import dbfUtils
+import dbfutils
 
 
 class ShapeFile(object):
@@ -75,7 +75,7 @@ class ShapeFile(object):
 
         # Open dbf file and get features as a list.
         dbfile = open(self.__filename[0:-4] + '.dbf', 'rb')
-        self.__db[:] = list(dbfUtils.dbfreader(dbfile))
+        self.__db[:] = list(dbfutils.dbfreader(dbfile))
         dbfile.close()
 
         fp.seek(32)
