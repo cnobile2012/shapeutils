@@ -7,9 +7,14 @@
 #
 
 PREFIX		= $(shell pwd)
-PACKAGE_DIR	= $(shell echo $${PWD\#\#*/})
+MAJOR		= 0
+MINOR		= 1
+PATCH		= 0
+PACKAGE_NAME	= $(shell echo $${PWD\#\#*/})
+PACKAGE_DIR	= $(PACKAGE_NAME)-$(MAJOR).$(MINOR).$(PATCH)
 SU_DIR		= $(PREFIX)/shputils
 DOCS_DIR	= $(PREFIX)/docs
+
 
 #----------------------------------------------------------------------
 all	: doc tar
@@ -20,7 +25,7 @@ doc	:
 #----------------------------------------------------------------------
 tar	: clean
 	@(cd ..; tar -czvf $(PACKAGE_DIR).tar.gz --exclude=".svn" \
-          $(PACKAGE_DIR))
+          $(PACKAGE_NAME))
 #----------------------------------------------------------------------
 clean	:
 	$(shell $(PREFIX)/cleanDirs.sh clean)
@@ -30,4 +35,4 @@ clean	:
 clobber	: clean
 	@(cd $(DOCS_DIR); make clobber)
 	@rm -f $(LOGS_DIR)/*.log*
-	@rm -rf shputils.egg-info build
+	@rm -rf shputils.egg-info build dist
