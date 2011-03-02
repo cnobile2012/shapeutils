@@ -30,3 +30,4 @@ clean	:
 clobber	: clean
 	@(cd $(DOCS_DIR); make clobber)
 	@rm -f $(LOGS_DIR)/*.log*
+	@rm -rf shputils.egg-info build
